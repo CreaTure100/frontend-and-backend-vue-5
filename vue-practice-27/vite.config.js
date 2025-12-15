@@ -10,6 +10,7 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
+  base: '/frontend-and-backend-vue-5/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
