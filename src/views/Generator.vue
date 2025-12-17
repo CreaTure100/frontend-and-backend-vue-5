@@ -46,6 +46,12 @@
             </button>
         </div>
 
+        <div class="share-section">
+            <button class="share-button" @click="sharePalette">
+                Поделиться палитрой (ссылка)
+            </button>
+        </div>
+
         <div class="palette-display">
             <ColorCard
                 v-for="color in colors"
@@ -66,16 +72,31 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import ColorCard from '../components/ColorCard.vue';
 import PalettePreview from '../components/PalettePreview.vue';
 import Notification from '../components/Notification.vue';
-import { generateRandomPalette, copyToClipboard } from '../utils/colorUtils';
+import {
+    generateRandomPalette,
+    copyToClipboard,
+    encodePalette,
+    decodePalette,
+    hexToHsl,
+} from '../utils/colorUtils';
 
 const colors = ref([]);
 const colorCount = ref(5);
 const displayFormat = ref('HEX');
 const notification = ref('');
+
+const shareLink = computed(() => {
+    if (!colors.value.length) return '';
+    const encoded = encodePalette(colors.value);
+    if (!encoded) return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('palette', encoded);
+    return url.toString();
+});
 
 const generateNewPalette = () => {
     const lockedColors = colors.value.filter((c) => c.locked);
@@ -140,12 +161,53 @@ const loadPaletteFromLocalStorage = () => {
     }
 };
 
+const loadPaletteFromQuery = () => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('palette');
+    if (!encoded) return false;
+    const hexes = decodePalette(encoded);
+    if (!hexes || !hexes.length) return false;
+
+    const shared = hexes.map((hex, i) => ({
+        id: Date.now() + i,
+        hex,
+        hsl: hexToHsl(hex),
+        locked: false,
+    }));
+
+    colors.value = shared;
+    colorCount.value = shared.length;
+    savePaletteToLocalStorage();
+    notification.value = 'Палитра загружена из шаринговой ссылки';
+    setTimeout(() => (notification.value = ''), 2500);
+    return true;
+};
+
+const sharePalette = async () => {
+    if (!shareLink.value) {
+        notification.value = 'Нет палитры для шаринга';
+        setTimeout(() => (notification.value = ''), 2000);
+        return;
+    }
+    const success = await copyToClipboard(shareLink.value);
+    if (success) {
+        notification.value = 'Ссылка на палитру скопирована!';
+        setTimeout(() => (notification.value = ''), 2500);
+    } else {
+        notification.value = 'Не удалось скопировать ссылку';
+        setTimeout(() => (notification.value = ''), 2500);
+    }
+};
+
 watch(colorCount, () => {
     localStorage.setItem('colorCount', colorCount.value.toString());
 });
 
 onMounted(() => {
-    loadPaletteFromLocalStorage();
+    const loadedFromQuery = loadPaletteFromQuery();
+    if (!loadedFromQuery) {
+        loadPaletteFromLocalStorage();
+    }
 });
 </script>
 
@@ -176,7 +238,7 @@ onMounted(() => {
 .controls {
     display: flex;
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
@@ -234,6 +296,27 @@ onMounted(() => {
 
 .generate-button:hover {
     background: #218838;
+}
+
+.share-section {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.share-button {
+    padding: 0.6rem 1.4rem;
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.share-button:hover {
+    background: #11849a;
 }
 
 .palette-display {

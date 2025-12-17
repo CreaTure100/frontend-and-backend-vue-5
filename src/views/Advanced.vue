@@ -35,7 +35,7 @@
                 </button>
             </div>
 
-            <!-- Новый блок: генерация по настроению -->
+            <!-- Блок: генерация по настроению -->
             <div class="control-section">
                 <h3>Создать по настроению</h3>
                 <div class="palette-type-selector">
@@ -50,6 +50,13 @@
                     Создать палитру по настроению
                 </button>
             </div>
+        </div>
+
+        <div class="share-section">
+            <button class="share-button" @click="sharePalette">
+                Поделиться палитрой (ссылка)
+            </button>
+            <span class="share-hint">Ссылка включает текущие цвета</span>
         </div>
 
         <div class="palette-display">
@@ -87,6 +94,13 @@
             <AccessibilityChecker :colors="colors" />
             <ExportPanel :colors="colors" @notify="showNotification" />
             <ColorWheel :colors="colors" />
+            <div class="share-card">
+                <h4>Шаринг палитры</h4>
+                <p>Скопируйте ссылку и поделитесь палитрой.</p>
+                <button class="share-button full" @click="sharePalette">
+                    📋 Скопировать ссылку
+                </button>
+            </div>
         </div>
 
         <div class="library-section">
@@ -118,6 +132,9 @@ import {
     generateMoodPalette,
     getAccentColors,
     copyToClipboard,
+    encodePalette,
+    decodePalette,
+    hexToHsl,
 } from '../utils/colorUtils';
 
 const colors = ref(generateRandomPalette(5));
@@ -146,6 +163,15 @@ const accentColors = computed(() => {
     const base = colors.value?.[0]?.hex;
     if (!base) return [];
     return getAccentColors(base);
+});
+
+const shareLink = computed(() => {
+    if (!colors.value.length) return '';
+    const encoded = encodePalette(colors.value);
+    if (!encoded) return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('palette', encoded);
+    return url.toString();
 });
 
 const saveCurrentPalette = () => {
@@ -177,6 +203,27 @@ const loadSavedPalette = () => {
         console.error('Не удалось загрузить палитру:', err);
         colors.value = generateRandomPalette(5);
     }
+};
+
+const loadPaletteFromQuery = () => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('palette');
+    if (!encoded) return false;
+    const hexes = decodePalette(encoded);
+    if (!hexes || !hexes.length) return false;
+
+    const shared = hexes.map((hex, i) => ({
+        id: Date.now() + i,
+        hex,
+        hsl: hexToHsl(hex),
+        locked: false,
+    }));
+
+    colors.value = shared;
+    baseColor.value = shared[0]?.hex || baseColor.value;
+    saveCurrentPalette();
+    showNotification('Палитра загружена из шаринговой ссылки');
+    return true;
 };
 
 const generateFromBase = () => {
@@ -254,13 +301,27 @@ const copyAccent = async (hex) => {
     }
 };
 
+const sharePalette = async () => {
+    if (!shareLink.value) {
+        showNotification('Нет палитры для шаринга');
+        return;
+    }
+    const success = await copyToClipboard(shareLink.value);
+    showNotification(
+        success ? 'Ссылка на палитру скопирована!' : 'Не удалось скопировать ссылку'
+    );
+};
+
 watch(baseColor, saveCurrentPalette);
 watch(paletteType, saveCurrentPalette);
 watch(mood, saveCurrentPalette);
 watch(colors, saveCurrentPalette, { deep: true });
 
 onMounted(() => {
-    loadSavedPalette();
+    const fromQuery = loadPaletteFromQuery();
+    if (!fromQuery) {
+        loadSavedPalette();
+    }
 });
 </script>
 
@@ -281,7 +342,40 @@ onMounted(() => {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
+}
+
+.share-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.share-button {
+    padding: 0.6rem 1.4rem;
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.share-button:hover {
+    background: #11849a;
+}
+
+.share-button.full {
+    width: 100%;
+    text-align: center;
+}
+
+.share-hint {
+    color: #6c757d;
+    font-size: 0.9rem;
 }
 
 .control-section {
@@ -354,7 +448,7 @@ onMounted(() => {
 .palette-display {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -365,6 +459,25 @@ onMounted(() => {
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
+}
+
+.share-card {
+    padding: 1rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.share-card h4 {
+    margin: 0;
+}
+
+.share-card p {
+    margin: 0;
+    color: #6c757d;
 }
 
 .library-section {

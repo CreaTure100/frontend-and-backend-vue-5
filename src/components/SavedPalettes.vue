@@ -42,7 +42,8 @@
                         :style="{ backgroundColor: color.hex }"
                     ></div>
                 </div>
-                <div class="palette-info">
+
+                <div class="palette-info" v-if="editingId !== palette.id">
                     <h4>{{ palette.name }}</h4>
                     <div
                         class="palette-tags"
@@ -56,7 +57,23 @@
                         >
                     </div>
                 </div>
-                <div class="palette-actions">
+
+                <div class="palette-info edit-mode" v-else>
+                    <input
+                        v-model="editName"
+                        type="text"
+                        class="edit-input"
+                        placeholder="Название палитры"
+                    />
+                    <input
+                        v-model="editTags"
+                        type="text"
+                        class="edit-input"
+                        placeholder="Теги (через запятую)"
+                    />
+                </div>
+
+                <div class="palette-actions" v-if="editingId !== palette.id">
                     <button
                         @click="toggleFavorite(palette.id)"
                         class="action-button"
@@ -72,11 +89,42 @@
                         Загрузить
                     </button>
                     <button
+                        @click="startEdit(palette)"
+                        class="action-button"
+                        title="Редактировать"
+                    >
+                        Редактировать
+                    </button>
+                    <button
                         @click="deletePalette(palette.id)"
                         class="action-button delete"
                         title="Удалить палитру"
                     >
                         Удалить
+                    </button>
+                </div>
+
+                <div class="palette-actions edit-actions" v-else>
+                    <button
+                        @click="applyEdit(palette.id)"
+                        class="action-button primary"
+                        title="Сохранить изменения"
+                    >
+                        Сохранить
+                    </button>
+                    <button
+                        @click="applyColors(palette.id)"
+                        class="action-button"
+                        title="Обновить цвета текущей палитрой"
+                    >
+                        Обновить цветами
+                    </button>
+                    <button
+                        @click="cancelEdit"
+                        class="action-button"
+                        title="Отмена"
+                    >
+                        Отмена
                     </button>
                 </div>
             </div>
@@ -104,6 +152,10 @@ const paletteName = ref('');
 const paletteTags = ref('');
 const searchQuery = ref('');
 const savedPalettes = ref([]);
+
+const editingId = ref(null);
+const editName = ref('');
+const editTags = ref('');
 
 // Load saved palettes from localStorage on mount
 const loadSavedPalettes = () => {
@@ -134,6 +186,10 @@ const filteredPalettes = computed(() => {
     });
 });
 
+const persist = () => {
+    localStorage.setItem('savedPalettes', JSON.stringify(savedPalettes.value));
+};
+
 const savePalette = () => {
     if (!paletteName.value.trim()) {
         emit('notify', 'Введите название палитры');
@@ -155,7 +211,7 @@ const savePalette = () => {
     };
 
     savedPalettes.value.unshift(newPalette);
-    localStorage.setItem('savedPalettes', JSON.stringify(savedPalettes.value));
+    persist();
 
     paletteName.value = '';
     paletteTags.value = '';
@@ -171,11 +227,11 @@ const loadPalette = (palette) => {
 const deletePalette = (id) => {
     if (confirm('Вы уверены, что хотите удалить эту палитру?')) {
         savedPalettes.value = savedPalettes.value.filter((p) => p.id !== id);
-        localStorage.setItem(
-            'savedPalettes',
-            JSON.stringify(savedPalettes.value)
-        );
+        persist();
         emit('notify', 'Палитра удалена');
+        if (editingId.value === id) {
+            cancelEdit();
+        }
     }
 };
 
@@ -183,11 +239,46 @@ const toggleFavorite = (id) => {
     const palette = savedPalettes.value.find((p) => p.id === id);
     if (palette) {
         palette.favorite = !palette.favorite;
-        localStorage.setItem(
-            'savedPalettes',
-            JSON.stringify(savedPalettes.value)
-        );
+        persist();
     }
+};
+
+const startEdit = (palette) => {
+    editingId.value = palette.id;
+    editName.value = palette.name;
+    editTags.value = (palette.tags || []).join(', ');
+};
+
+const cancelEdit = () => {
+    editingId.value = null;
+    editName.value = '';
+    editTags.value = '';
+};
+
+const applyEdit = (id) => {
+    const palette = savedPalettes.value.find((p) => p.id === id);
+    if (!palette) return;
+
+    const name = editName.value.trim();
+    const tags = editTags.value
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t);
+
+    if (name) palette.name = name;
+    palette.tags = tags;
+
+    persist();
+    emit('notify', 'Палитра обновлена');
+    cancelEdit();
+};
+
+const applyColors = (id) => {
+    const palette = savedPalettes.value.find((p) => p.id === id);
+    if (!palette) return;
+    palette.colors = JSON.parse(JSON.stringify(props.currentColors));
+    persist();
+    emit('notify', 'Цвета обновлены из текущей палитры');
 };
 </script>
 
@@ -329,6 +420,34 @@ const toggleFavorite = (id) => {
 .action-button.delete:hover {
     background: #f8d7da;
     border-color: #dc3545;
+}
+
+.action-button.primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.action-button.primary:hover {
+    background: #e7f0ff;
+}
+
+.edit-mode {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.edit-input {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 0.35rem;
 }
 
 .empty-state {

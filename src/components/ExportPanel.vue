@@ -25,9 +25,14 @@
             <pre><code>{{ exportCode }}</code></pre>
         </div>
 
-        <button class="copy-button" @click="copyExportCode">
-            📋 Скопировать в буфер
-        </button>
+        <div class="actions">
+            <button class="copy-button" @click="copyExportCode">
+                📋 Скопировать в буфер
+            </button>
+            <button class="download-button" @click="downloadExportCode">
+                ⬇️ Скачать файл
+            </button>
+        </div>
     </div>
 </template>
 
@@ -99,11 +104,49 @@ const generateJSON = () => {
 };
 
 const copyExportCode = async () => {
+    if (!exportCode.value) {
+        emit('notify', 'Нет данных для копирования');
+        return;
+    }
     const success = await copyToClipboard(exportCode.value);
     if (success) {
         emit('notify', 'Код палитры скопирован в буфер обмена!');
     } else {
         emit('notify', 'Не удалось скопировать код');
+    }
+};
+
+const downloadExportCode = () => {
+    if (!exportCode.value) {
+        emit('notify', 'Нет данных для скачивания');
+        return;
+    }
+
+    const { filename, mime } = getFileMeta(selectedFormat.value);
+    const blob = new Blob([exportCode.value], { type: mime });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
+    emit('notify', `Файл ${filename} скачан`);
+};
+
+const getFileMeta = (format) => {
+    switch (format) {
+        case 'css':
+            return { filename: 'palette.css', mime: 'text/css;charset=utf-8' };
+        case 'scss':
+            return { filename: 'palette.scss', mime: 'text/x-scss;charset=utf-8' };
+        case 'tailwind':
+            return { filename: 'tailwind.config.js', mime: 'application/javascript;charset=utf-8' };
+        case 'json':
+            return { filename: 'palette.json', mime: 'application/json;charset=utf-8' };
+        default:
+            return { filename: 'palette.txt', mime: 'text/plain;charset=utf-8' };
     }
 };
 </script>
@@ -161,19 +204,38 @@ const copyExportCode = async () => {
     color: #212529;
 }
 
-.copy-button {
-    width: 100%;
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.copy-button,
+.download-button {
+    flex: 1;
+    min-width: 160px;
     padding: 0.75rem;
-    background: #007bff;
-    color: white;
     border: none;
     border-radius: 4px;
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.2s;
+    color: white;
+}
+
+.copy-button {
+    background: #007bff;
 }
 
 .copy-button:hover {
     background: #0056b3;
+}
+
+.download-button {
+    background: #28a745;
+}
+
+.download-button:hover {
+    background: #218838;
 }
 </style>

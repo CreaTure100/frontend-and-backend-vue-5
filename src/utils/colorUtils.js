@@ -1,8 +1,4 @@
-// Color utility functions for palette generation and conversion
 
-/**
- * Generate a random color in HSL format
- */
 export function randomColor() {
   const hue = Math.floor(Math.random() * 360);
   const saturation = Math.floor(Math.random() * 40) + 60; // 60-100%
@@ -73,8 +69,6 @@ export function rgbToHsl(r, g, b) {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     
-    // Calculate hue based on which color channel is dominant
-    // Values 6, 2, 4 represent positions on the color wheel (red, green, blue)
     switch (max) {
       case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break; // Red dominant
       case g: h = ((b - r) / d + 2) / 6; break; // Green dominant
@@ -98,9 +92,7 @@ export function hexToHsl(hex) {
   return rgbToHsl(rgb.r, rgb.g, rgb.b);
 }
 
-/**
- * Generate harmonious palette (random)
- */
+
 export function generateRandomPalette(count = 5) {
   const colors = [];
   for (let i = 0; i < count; i++) {
@@ -115,15 +107,13 @@ export function generateRandomPalette(count = 5) {
   return colors;
 }
 
-/**
- * Generate analogous palette from base color
- */
+
 export function generateAnalogousPalette(baseHex, count = 5) {
   const baseHsl = hexToHsl(baseHex);
   if (!baseHsl) return generateRandomPalette(count);
   
   const colors = [];
-  const step = 30; // 30 degrees on color wheel
+  const step = 30; 
   
   for (let i = 0; i < count; i++) {
     const offset = (i - Math.floor(count / 2)) * step;
@@ -139,32 +129,44 @@ export function generateAnalogousPalette(baseHex, count = 5) {
   return colors;
 }
 
-/**
- * Generate monochromatic palette from base color
- */
+
 export function generateMonochromaticPalette(baseHex, count = 5) {
   const baseHsl = hexToHsl(baseHex);
   if (!baseHsl) return generateRandomPalette(count);
   
   const colors = [];
-  const lightnessStep = 15;
+  const lightnessStep = 12; 
+  const seen = new Set();
   
   for (let i = 0; i < count; i++) {
-    const l = Math.max(20, Math.min(90, baseHsl.l + (i - Math.floor(count / 2)) * lightnessStep));
-    const color = { h: baseHsl.h, s: baseHsl.s, l };
+    const baseL = baseHsl.l + (i - Math.floor(count / 2)) * lightnessStep;
+    
+    let hex = '';
+    let finalL = baseL;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const jitter = attempt === 0 ? 0 : (attempt % 2 === 0 ? attempt : -attempt); // 0, +1, -2, +3, -4
+      const l = Math.max(20, Math.min(90, Math.round(baseL + jitter)));
+      const candidate = { h: baseHsl.h, s: baseHsl.s, l };
+      hex = hslToHex(candidate.h, candidate.s, candidate.l);
+      if (!seen.has(hex)) {
+        finalL = l;
+        seen.add(hex);
+        break;
+      }
+    }
+    
     colors.push({
       id: Date.now() + i,
-      hex: hslToHex(color.h, color.s, color.l),
-      hsl: color,
+      hex,
+      hsl: { h: baseHsl.h, s: baseHsl.s, l: finalL },
       locked: false
     });
   }
   return colors;
 }
 
-/**
- * Generate triadic palette from base color
- */
+
 export function generateTriadicPalette(baseHex) {
   const baseHsl = hexToHsl(baseHex);
   if (!baseHsl) return generateRandomPalette(3);
@@ -183,15 +185,13 @@ export function generateTriadicPalette(baseHex) {
   return colors;
 }
 
-/**
- * Generate complementary palette from base color
- */
+
 export function generateComplementaryPalette(baseHex) {
   const baseHsl = hexToHsl(baseHex);
   if (!baseHsl) return generateRandomPalette(2);
   
   const colors = [];
-  // Base color
+
   colors.push({
     id: Date.now(),
     hex: baseHex,
@@ -199,7 +199,7 @@ export function generateComplementaryPalette(baseHex) {
     locked: false
   });
   
-  // Complementary color (180 degrees opposite)
+
   const h = (baseHsl.h + 180) % 360;
   const complementary = { h, s: baseHsl.s, l: baseHsl.l };
   colors.push({
@@ -212,9 +212,6 @@ export function generateComplementaryPalette(baseHex) {
   return colors;
 }
 
-/**
- * Generate palette by mood
- */
 export function generateMoodPalette(mood, count = 5) {
   const colors = [];
   let hueRange, satRange, lightRange;
@@ -265,9 +262,9 @@ export function getAccentColors(baseHex) {
   if (!baseHsl) return [];
   
   const variants = [
-    { h: (baseHsl.h + 180) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Комплементарный' },
-    { h: (baseHsl.h + 120) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Триада +120°' },
-    { h: (baseHsl.h + 240) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Триада -120°' },
+    { h: (baseHsl.h + 180) % 360, s: baseHsl.s, l: baseHsl.l, label: '' },
+    { h: (baseHsl.h + 120) % 360, s: baseHsl.s, l: baseHsl.l, label: '' },
+    { h: (baseHsl.h + 240) % 360, s: baseHsl.s, l: baseHsl.l, label: '' },
   ];
   
   const seen = new Set();
@@ -283,9 +280,32 @@ export function getAccentColors(baseHex) {
   return accents;
 }
 
-/**
- * Calculate relative luminance for WCAG contrast
- */
+
+export function encodePalette(colors = []) {
+  try {
+    const hexes = colors.map(c => c.hex);
+    return btoa(JSON.stringify(hexes));
+  } catch (e) {
+    console.error('Failed to encode palette', e);
+    return '';
+  }
+}
+
+
+export function decodePalette(encoded) {
+  if (!encoded) return null;
+  try {
+    const json = atob(encoded);
+    const hexes = JSON.parse(json);
+    if (!Array.isArray(hexes)) return null;
+    return hexes.filter(Boolean);
+  } catch (e) {
+    console.error('Failed to decode palette', e);
+    return null;
+  }
+}
+
+
 export function getRelativeLuminance(hex) {
   const rgb = hexToRgb(hex);
   if (!rgb) return 0;
@@ -301,9 +321,7 @@ export function getRelativeLuminance(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-/**
- * Calculate contrast ratio between two colors
- */
+
 export function getContrastRatio(hex1, hex2) {
   const lum1 = getRelativeLuminance(hex1);
   const lum2 = getRelativeLuminance(hex2);
@@ -314,9 +332,7 @@ export function getContrastRatio(hex1, hex2) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-/**
- * Check WCAG accessibility level
- */
+
 export function getAccessibilityLevel(contrastRatio, isLargeText = false) {
   if (isLargeText) {
     if (contrastRatio >= 4.5) return 'AAA';
@@ -328,9 +344,7 @@ export function getAccessibilityLevel(contrastRatio, isLargeText = false) {
   return 'Fail';
 }
 
-/**
- * Copy text to clipboard
- */
+
 export async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
