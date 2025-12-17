@@ -8,7 +8,6 @@
                 :style="m.style"
                 :title="m.hex"
             />
-            <div class="center-dot" :style="{ backgroundColor: centerColor }"></div>
         </div>
         <p class="hint">Оттенки текущей палитры отмечены точками</p>
     </div>
@@ -25,12 +24,9 @@ const props = defineProps({
     },
 });
 
-// Цвет центра — первый цвет палитры
-const centerColor = computed(() => props.colors?.[0]?.hex || '#ffffff');
-
 // Маркеры палитры поверх непрерывного цветового круга
 const markers = computed(() => {
-    const radius = 48; // радиус вынесен ближе к внешнему кольцу
+    const radius = 48; // ближе к внешнему кольцу
     return (props.colors || []).map((c) => {
         const hsl = hexToHsl(c.hex);
         const angle = hsl ? hsl.h : 0;
@@ -90,20 +86,7 @@ const markers = computed(() => {
     box-shadow:
         0 2px 8px rgba(0, 0, 0, 0.35),
         0 0 0 1px rgba(0, 0, 0, 0.15);
-    z-index: 3; /* поверх центра и градиента */
-}
-
-.center-dot {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 110px;
-    height: 110px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.85);
-    transform: translate(-50%, -50%);
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
-    z-index: 2;
+    z-index: 3;
 }
 
 .hint {
