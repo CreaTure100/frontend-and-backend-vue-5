@@ -1,15 +1,16 @@
 <template>
     <div class="color-wheel">
-        <div class="wheel" :style="wheelStyle">
-            <div class="marker"
-                 v-for="m in markers"
-                 :key="m.hex"
-                 :style="m.style"
-                 :title="m.hex">
-            </div>
-            <div class="center-dot">Цветовой круг</div>
+        <div class="wheel">
+            <div
+                class="marker"
+                v-for="m in markers"
+                :key="m.hex"
+                :style="m.style"
+                :title="m.hex"
+            />
+            <div class="center-dot" :style="{ backgroundColor: centerColor }"></div>
         </div>
-        <p class="hint">Отображение оттенков текущей палитры на круге</p>
+        <p class="hint">Оттенки текущей палитры отмечены точками</p>
     </div>
 </template>
 
@@ -24,26 +25,12 @@ const props = defineProps({
     },
 });
 
-const wheelStyle = computed(() => {
-    const palette = props.colors || [];
-    if (!palette.length) {
-        return {
-            background: 'conic-gradient(#ccc, #888, #ccc)',
-        };
-    }
-    const n = palette.length;
-    const stops = palette.map((c, i) => {
-        const start = (i * 360) / n;
-        const end = ((i + 1) * 360) / n;
-        return `${c.hex} ${start}deg ${end}deg`;
-    });
-    return {
-        background: `conic-gradient(${stops.join(', ')})`,
-    };
-});
+// Цвет центра — первый цвет палитры
+const centerColor = computed(() => props.colors?.[0]?.hex || '#ffffff');
 
+// Маркеры палитры поверх непрерывного цветового круга
 const markers = computed(() => {
-    const radius = 42; // проценты от размера круга
+    const radius = 48; // радиус вынесен ближе к внешнему кольцу
     return (props.colors || []).map((c) => {
         const hsl = hexToHsl(c.hex);
         const angle = hsl ? hsl.h : 0;
@@ -71,6 +58,22 @@ const markers = computed(() => {
     width: 320px;
     height: 320px;
     border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        red 0deg,
+        #ff8000 30deg,
+        #ffbf00 60deg,
+        yellow 90deg,
+        #80ff00 120deg,
+        #00ff40 150deg,
+        #00ffbf 180deg,
+        #00bfff 210deg,
+        #0080ff 240deg,
+        #4000ff 270deg,
+        #8000ff 300deg,
+        #ff00bf 330deg,
+        red 360deg
+    );
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     border: 8px solid #fff;
     overflow: hidden;
@@ -80,11 +83,14 @@ const markers = computed(() => {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(0, 0, 0, 0.15);
+    z-index: 3; /* поверх центра и градиента */
 }
 
 .center-dot {
@@ -94,18 +100,10 @@ const markers = computed(() => {
     width: 110px;
     height: 110px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.85);
-    border: 2px solid #e9ecef;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 0.75rem;
-    color: #495057;
-    font-weight: 600;
-    font-size: 0.9rem;
+    border: 2px solid rgba(255, 255, 255, 0.85);
     transform: translate(-50%, -50%);
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 2;
 }
 
 .hint {
