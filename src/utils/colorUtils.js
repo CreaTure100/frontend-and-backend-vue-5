@@ -257,6 +257,33 @@ export function generateMoodPalette(mood, count = 5) {
 }
 
 /**
+ * Подбор акцентных цветов: комплементарный и два триадных относительно базового.
+ * Возвращает массив объектов { hex, label }.
+ */
+export function getAccentColors(baseHex) {
+  const baseHsl = hexToHsl(baseHex);
+  if (!baseHsl) return [];
+  
+  const variants = [
+    { h: (baseHsl.h + 180) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Комплементарный' },
+    { h: (baseHsl.h + 120) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Триада +120°' },
+    { h: (baseHsl.h + 240) % 360, s: baseHsl.s, l: baseHsl.l, label: 'Триада -120°' },
+  ];
+  
+  const seen = new Set();
+  const accents = [];
+  variants.forEach((v) => {
+    const hex = hslToHex(v.h, v.s, v.l);
+    if (!seen.has(hex)) {
+      seen.add(hex);
+      accents.push({ hex, label: v.label });
+    }
+  });
+  
+  return accents;
+}
+
+/**
  * Calculate relative luminance for WCAG contrast
  */
 export function getRelativeLuminance(hex) {

@@ -3,6 +3,7 @@
         <h1>Продвинутые инструменты палитр</h1>
 
         <div class="advanced-controls">
+            <!-- Блок: генерация от базового цвета -->
             <div class="control-section">
                 <h3>Создать от базового цвета</h3>
                 <div class="base-color-controls">
@@ -33,6 +34,22 @@
                     Создать по базовому цвету
                 </button>
             </div>
+
+            <!-- Новый блок: генерация по настроению -->
+            <div class="control-section">
+                <h3>Создать по настроению</h3>
+                <div class="palette-type-selector">
+                    <label>Настроение:</label>
+                    <select v-model="mood">
+                        <option value="calm">Спокойное</option>
+                        <option value="energetic">Энергичное</option>
+                        <option value="professional">Профессиональное</option>
+                    </select>
+                </div>
+                <button @click="generateByMood" class="action-button">
+                    Создать палитру по настроению
+                </button>
+            </div>
         </div>
 
         <div class="palette-display">
@@ -44,6 +61,26 @@
                 @copy="handleCopy"
                 @toggle-lock="toggleLock"
             />
+        </div>
+
+        <div class="accent-section" v-if="accentColors.length">
+            <h3>Акцентные цвета (относительно первого цвета палитры)</h3>
+            <div class="accent-list">
+                <div
+                    v-for="accent in accentColors"
+                    :key="accent.hex"
+                    class="accent-card"
+                    :style="{ backgroundColor: accent.hex }"
+                >
+                    <div class="accent-info">
+                        <span class="accent-label">{{ accent.label }}</span>
+                        <button class="accent-copy" @click="copyAccent(accent.hex)">
+                            📋 Копировать
+                        </button>
+                    </div>
+                    <div class="accent-code">{{ accent.hex }}</div>
+                </div>
+            </div>
         </div>
 
         <div class="tools-grid">
@@ -64,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import ColorCard from '../components/ColorCard.vue';
 import AccessibilityChecker from '../components/AccessibilityChecker.vue';
 import ExportPanel from '../components/ExportPanel.vue';
@@ -76,6 +113,8 @@ import {
     generateTriadicPalette,
     generateComplementaryPalette,
     generateRandomPalette,
+    generateMoodPalette,
+    getAccentColors,
     copyToClipboard,
 } from '../utils/colorUtils';
 
@@ -84,6 +123,7 @@ const baseColor = ref('#3498db');
 const paletteType = ref('analogous');
 const displayFormat = ref('HEX');
 const notification = ref('');
+const mood = ref('calm');
 
 const paletteTypeLabels = {
     analogous: 'Аналоговая',
@@ -92,13 +132,26 @@ const paletteTypeLabels = {
     complementary: 'Комплементарная',
 };
 
+const moodLabels = {
+    calm: 'Спокойная',
+    energetic: 'Энергичная',
+    professional: 'Профессиональная',
+};
+
 const STORAGE_KEY = 'advancedPalette';
+
+const accentColors = computed(() => {
+    const base = colors.value?.[0]?.hex;
+    if (!base) return [];
+    return getAccentColors(base);
+});
 
 const saveCurrentPalette = () => {
     const payload = {
         colors: colors.value,
         baseColor: baseColor.value,
         paletteType: paletteType.value,
+        mood: mood.value,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 };
@@ -117,6 +170,7 @@ const loadSavedPalette = () => {
         }
         if (parsed.baseColor) baseColor.value = parsed.baseColor;
         if (parsed.paletteType) paletteType.value = parsed.paletteType;
+        if (parsed.mood) mood.value = parsed.mood;
     } catch (err) {
         console.error('Не удалось загрузить палитру:', err);
         colors.value = generateRandomPalette(5);
@@ -146,6 +200,17 @@ const generateFromBase = () => {
     colors.value = newPalette;
     showNotification(
         `Создана ${paletteTypeLabels[paletteType.value] || 'новая'} палитра!`
+    );
+    saveCurrentPalette();
+};
+
+const generateByMood = () => {
+    const newPalette = generateMoodPalette(mood.value, 5);
+    colors.value = newPalette;
+    showNotification(
+        `Создана палитра по настроению: ${
+            moodLabels[mood.value] || mood.value
+        }`
     );
     saveCurrentPalette();
 };
@@ -180,8 +245,16 @@ const showNotification = (message) => {
     }, 2500);
 };
 
+const copyAccent = async (hex) => {
+    const success = await copyToClipboard(hex);
+    if (success) {
+        showNotification(`Скопировано ${hex} в буфер обмена!`);
+    }
+};
+
 watch(baseColor, saveCurrentPalette);
 watch(paletteType, saveCurrentPalette);
+watch(mood, saveCurrentPalette);
 watch(colors, saveCurrentPalette, { deep: true });
 
 onMounted(() => {
@@ -294,5 +367,61 @@ onMounted(() => {
 
 .library-section {
     margin-top: 2rem;
+}
+
+.accent-section {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.accent-list {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-top: 0.75rem;
+}
+
+.accent-card {
+    position: relative;
+    border-radius: 8px;
+    padding: 1rem;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.accent-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    gap: 0.5rem;
+}
+
+.accent-label {
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.accent-copy {
+    background: rgba(0, 0, 0, 0.25);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.accent-copy:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.accent-code {
+    font-family: monospace;
+    font-size: 0.95rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 </style>
