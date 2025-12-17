@@ -86,6 +86,7 @@
         <div class="tools-grid">
             <AccessibilityChecker :colors="colors" />
             <ExportPanel :colors="colors" @notify="showNotification" />
+            <ColorWheel :colors="colors" />
         </div>
 
         <div class="library-section">
@@ -107,6 +108,7 @@ import AccessibilityChecker from '../components/AccessibilityChecker.vue';
 import ExportPanel from '../components/ExportPanel.vue';
 import SavedPalettes from '../components/SavedPalettes.vue';
 import Notification from '../components/Notification.vue';
+import ColorWheel from '../components/ColorWheel.vue';
 import {
     generateAnalogousPalette,
     generateMonochromaticPalette,
@@ -360,7 +362,7 @@ onMounted(() => {
 
 .tools-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
