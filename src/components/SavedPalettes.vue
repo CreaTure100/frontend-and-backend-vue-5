@@ -19,12 +19,21 @@
             </button>
         </div>
 
-        <div class="search-section">
-            <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Поиск палитр..."
-            />
+        <div class="search-row">
+            <div class="search-section">
+                <input
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="Поиск палитр..."
+                />
+            </div>
+            <button
+                class="favorite-toggle"
+                :class="{ active: showFavoritesOnly }"
+                @click="toggleFavoritesOnly"
+            >
+                ⭐ Только избранные
+            </button>
         </div>
 
         <div class="palettes-list">
@@ -157,6 +166,8 @@ const editingId = ref(null);
 const editName = ref('');
 const editTags = ref('');
 
+const showFavoritesOnly = ref(false);
+
 // Load saved palettes from localStorage on mount
 const loadSavedPalettes = () => {
     const saved = localStorage.getItem('savedPalettes');
@@ -172,17 +183,20 @@ const loadSavedPalettes = () => {
 loadSavedPalettes();
 
 const filteredPalettes = computed(() => {
-    if (!searchQuery.value) {
-        return savedPalettes.value;
-    }
+    const list = savedPalettes.value || [];
+    const query = searchQuery.value.trim().toLowerCase();
 
-    const query = searchQuery.value.toLowerCase();
-    return savedPalettes.value.filter((palette) => {
+    return list.filter((palette) => {
+        const matchesFavorites = showFavoritesOnly.value ? palette.favorite : true;
+
         const nameMatch = palette.name.toLowerCase().includes(query);
         const tagsMatch =
             palette.tags &&
             palette.tags.some((tag) => tag.toLowerCase().includes(query));
-        return nameMatch || tagsMatch;
+
+        const matchesSearch = !query || nameMatch || tagsMatch;
+
+        return matchesFavorites && matchesSearch;
     });
 });
 
@@ -280,6 +294,10 @@ const applyColors = (id) => {
     persist();
     emit('notify', 'Цвета обновлены из текущей палитры');
 };
+
+const toggleFavoritesOnly = () => {
+    showFavoritesOnly.value = !showFavoritesOnly.value;
+};
 </script>
 
 <style scoped>
@@ -324,8 +342,16 @@ const applyColors = (id) => {
     background: #218838;
 }
 
-.search-section {
+.search-row {
+    display: flex;
+    gap: 0.5rem;
     margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-section {
+    flex: 1;
 }
 
 .search-section input {
@@ -334,6 +360,30 @@ const applyColors = (id) => {
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 0.9rem;
+}
+
+.favorite-toggle {
+    padding: 0.55rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #495057;
+    min-width: 170px;
+    text-align: center;
+}
+
+.favorite-toggle:hover {
+    border-color: #ffc107;
+    background: #fff8e1;
+}
+
+.favorite-toggle.active {
+    border-color: #ffc107;
+    background: #ffc107;
+    color: #212529;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .palettes-list {
